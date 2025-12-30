@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { AppState, GroundingSource, LatLng } from './types';
 import { getTravelGuideStream } from './services/geminiService';
 import LoadingView from './components/LoadingView';
@@ -23,7 +23,7 @@ const App: React.FC = () => {
     
     if (!queryToUse && !latLngOverride) return;
 
-    // 상태 초기화
+    // 초기 상태 설정
     setState(prev => ({ 
       ...prev, 
       loading: true, 
@@ -58,7 +58,7 @@ const App: React.FC = () => {
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: err.message || "알 수 없는 오류가 발생했습니다. 김반장이 다시 준비할게요!"
+        error: err.message || "알 수 없는 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
       }));
     }
   }, [state.query]);
@@ -81,7 +81,7 @@ const App: React.FC = () => {
       },
       (error) => {
         let errorMessage = "위치 정보를 가져올 수 없습니다.";
-        if (error.code === 1) errorMessage = "위치 정보 접근 권한이 거부되었습니다. 설정에서 허용해 주세요.";
+        if (error.code === 1) errorMessage = "위치 정보 접근 권한이 거부되었습니다. 브라우저 설정에서 허용해 주세요.";
         else if (error.code === 3) errorMessage = "위치 확인 시간이 초과되었습니다.";
         setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       },
@@ -106,7 +106,7 @@ const App: React.FC = () => {
         </div>
         <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
           <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-bold mb-6 backdrop-blur-md border border-white/30 uppercase tracking-widest">
-            Expert Data Analytics • Real-time Location
+            Expert Data Analytics • Local Guide
           </div>
           <h1 className="text-4xl md:text-6xl font-black mb-4 drop-shadow-2xl tracking-tighter">
             홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
@@ -217,7 +217,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="bg-slate-900 text-slate-500 py-16 px-6 text-center">
-        <p className="font-black tracking-[0.2em] text-slate-300 uppercase mb-4 text-xs">Hong Kong Kim Ban Jang • AI 2025</p>
+        <p className="font-black tracking-[0.2em] text-slate-300 uppercase mb-4 text-xs">Hong Kong Kim Ban Jang • 2025</p>
         <p className="max-w-md mx-auto text-[10px] leading-relaxed opacity-50 font-medium">
           이 서비스는 실시간 구글 검색 및 맵 데이터를 분석하여 제공됩니다.<br/>현지 사정에 따라 영업시간 등이 다를 수 있으니 방문 전 구글 맵을 꼭 확인하세요.
         </p>

@@ -51,15 +51,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           );
         }
 
-        // 메뉴 상세 (리스트 형태)
+        // 메뉴 상세 카드
         if (line.startsWith('- [') && line.includes('/')) {
-          const parts = line.replace('- [', '').replace(']', '').split('/').map(p => p.trim());
+          const contentInside = line.match(/\[(.*?)\]/)?.[1];
+          if (!contentInside) return null;
+          
+          const parts = contentInside.split('/').map(p => p.trim());
           const [name, price, desc] = parts;
+          
           return (
-            <div key={index} className="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm hover:shadow-md transition-shadow">
+            <div key={index} className="bg-white border border-slate-100 rounded-2xl p-5 mb-3 shadow-sm hover:shadow-md transition-all border-l-4 border-l-red-500">
               <div className="flex justify-between items-start mb-2">
                 <span className="font-black text-slate-800 text-base">{name}</span>
-                <span className="text-red-600 font-black text-sm shrink-0 ml-4">{price}</span>
+                <span className="text-red-600 font-black text-sm shrink-0 ml-4 bg-red-50 px-2 py-1 rounded-lg">{price}</span>
               </div>
               <p className="text-slate-500 text-xs leading-relaxed font-medium">
                 {desc}
@@ -68,11 +72,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           );
         }
 
-        // 사진 검색 버튼 (식당 및 메뉴)
-        if (line.includes('키워드:')) {
-          const isMenu = line.includes('메뉴검색');
-          const keyword = line.match(/키워드:\s*(.*?)\]/)?.[1] || "";
-          if (!keyword) return null;
+        // 사진 검색 버튼 (식당 / 메뉴 / 장소)
+        if (line.includes('사진:')) {
+          const isMenu = line.includes('메뉴사진');
+          const isPlace = line.includes('장소사진');
+          const keywordMatch = line.match(/:\s*(.*?)\]/);
+          const keyword = keywordMatch ? keywordMatch[1] : "홍콩";
           
           const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(keyword)}`;
           
@@ -82,13 +87,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
                 href={searchUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black transition-all active:scale-95 shadow-sm border ${
+                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 shadow-md border ${
                   isMenu 
-                    ? 'bg-white border-red-100 text-red-600 hover:bg-red-50' 
+                    ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50' 
                     : 'bg-slate-900 border-slate-900 text-white hover:bg-red-600'
                 }`}
               >
-                {isMenu ? '🍛 메뉴 사진' : '📸 식당 사진'} 보기
+                {isMenu ? '🍜 메뉴 사진' : (isPlace ? '📸 장소 사진' : '🏢 식당 사진')} 보기
               </a>
             </div>
           );
@@ -106,7 +111,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           );
         }
 
-        // 지도 및 길찾기
+        // 지도 렌더링
         if (line.includes('📍')) {
           const urlMatch = line.match(/(https?:\/\/[^\s]+)/g);
           const rawUrl = urlMatch ? urlMatch[0] : '';
@@ -119,27 +124,27 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
 
           return (
             <div key={index} className="space-y-4 pt-6 pb-12 border-b border-slate-100 mb-10 last:border-0">
-              <div className="w-full h-64 bg-slate-200 rounded-[2.5rem] overflow-hidden shadow-inner border border-slate-200 relative">
+              <div className="w-full h-72 bg-slate-200 rounded-[2.5rem] overflow-hidden shadow-inner border border-slate-200 relative">
                 <iframe 
                   width="100%" height="100%" frameBorder="0" 
                   src={embedUrl} title="Google Maps"
                   className="grayscale-[10%] hover:grayscale-0 transition-all duration-700"
                 ></iframe>
                 <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-[9px] font-black text-slate-800 shadow-sm">
-                  LIVE MAP PREVIEW
+                  GOOGLE MAPS PREVIEW
                 </div>
               </div>
               <div className="flex gap-3">
                 <a 
                   href={directionsUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-[3] flex items-center justify-center gap-2 py-5 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-red-600 transition-all shadow-xl active:scale-95"
+                  className="flex-[3] flex items-center justify-center gap-2 py-5 bg-slate-900 text-white rounded-3xl text-sm font-black hover:bg-red-600 transition-all shadow-xl active:scale-95"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                  지금 바로 길찾기 시작
+                  실시간 길찾기
                 </a>
                 <a 
                   href={rawUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-1 flex items-center justify-center bg-white border-2 border-slate-200 text-slate-800 rounded-2xl hover:bg-slate-50 transition-all active:scale-95"
+                  className="flex-1 flex items-center justify-center bg-white border-2 border-slate-200 text-slate-800 rounded-3xl hover:bg-slate-50 transition-all active:scale-95"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                 </a>
