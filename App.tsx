@@ -1,6 +1,4 @@
 
-// App.tsx: Main component managing application state, search logic, and UI flow.
-
 import React, { useState, useCallback, useRef } from 'react';
 import { AppState, GroundingSource, LatLng } from './types';
 import { getTravelGuideStream } from './services/geminiService';
@@ -17,30 +15,24 @@ const App: React.FC = () => {
   });
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingSources, setStreamingSources] = useState<GroundingSource[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const handleApiKeySetup = async () => {
-    try {
-      if (window.aistudio) {
-        await window.aistudio.openSelectKey();
-        setState(prev => ({ ...prev, error: null }));
-      }
-    } catch (e) {
-      console.error("API key setup failed", e);
+  
+  // API 키 선택 도우미
+  const fixConnection = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setState(prev => ({ ...prev, error: null }));
     }
   };
 
   const handleSearch = useCallback(async (e?: React.FormEvent, overrideQuery?: string, latLngOverride?: LatLng) => {
     if (e) e.preventDefault();
     const queryToUse = (overrideQuery || state.query).trim();
-    
     if (!queryToUse && !latLngOverride) return;
 
     setState(prev => ({ 
       ...prev, 
       loading: true, 
       error: null, 
-      result: null, 
       query: queryToUse || (latLngOverride ? '내 주변' : ''),
       userLocation: latLngOverride || null
     }));
@@ -48,7 +40,14 @@ const App: React.FC = () => {
     setStreamingSources([]);
     
     try {
-      // 시스템이 관리하는 API 키를 사용하여 즉시 스트리밍을 시작합니다.
+      // 검색 전 키 선택 여부 한 번 더 확인 (Gemini 3 모델 필수 사항)
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+          await window.aistudio.openSelectKey();
+        }
+      }
+
       await getTravelGuideStream(
         queryToUse, 
         latLngOverride || null,
@@ -68,18 +67,13 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, loading: false }));
     } catch (err: any) {
       console.error("Search Error:", err);
-      let errorMessage = "김반장이 정보를 가져오는 중에 문제가 생겼습니다.";
+      let errorMessage = "통신에 문제가 생겼습니다. 다시 시도해 주세요.";
       
-      // 인증 오류 발생 시에만 키 설정을 제안합니다.
-      if (err.message?.includes("API key") || err.message?.includes("403") || err.message?.includes("401")) {
-        errorMessage = "시스템 API 키가 유효하지 않거나 만료되었습니다. 아래 버튼을 눌러 다시 설정해 주세요.";
+      if (err.message?.includes("API key") || err.message?.includes("403") || err.message?.includes("401") || err.message?.includes("not found")) {
+        errorMessage = "API 키 승인이 필요합니다. 아래 '연결 복구하기' 버튼을 눌러주세요.";
       }
 
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: errorMessage
-      }));
+      setState(prev => ({ ...prev, loading: false, error: errorMessage }));
     }
   }, [state.query]);
 
@@ -105,20 +99,17 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden selection:bg-red-100 selection:text-red-600">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden">
       <header className="glass-header text-white pt-16 pb-32 px-6 relative overflow-hidden shrink-0">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="text-[20rem] font-black absolute -bottom-20 -right-20 leading-none">HK</div>
         </div>
         <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
-          <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-black mb-6 backdrop-blur-md border border-white/30 uppercase tracking-[0.3em]">
-            Hong Kong Expert • Data Grounding
-          </div>
           <h1 className="text-5xl md:text-7xl font-black mb-6 drop-shadow-2xl tracking-tighter">
             홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
           </h1>
           <p className="text-base md:text-xl opacity-90 font-bold max-w-lg leading-relaxed">
-            "불필요한 확인 절차는 뺐습니다!<br/>이제 바로 홍콩의 진짜 정보를 보여드리죠."
+            "20년 현지 경력과 실시간 구글 데이터의 만남!<br/>홍콩의 진짜 정보를 막힘없이 보여드립니다."
           </p>
         </div>
       </header>
@@ -131,7 +122,7 @@ const App: React.FC = () => {
               value={state.query}
               onChange={(e) => setState(prev => ({ ...prev, query: e.target.value }))}
               placeholder="지역명(예: 침사추이) 또는 메뉴 검색"
-              className="w-full px-8 py-6 rounded-[2.5rem] shadow-2xl border-4 border-white focus:border-red-500 focus:ring-0 outline-none text-xl pr-20 bg-white transition-all placeholder:text-slate-300 font-bold"
+              className="w-full px-8 py-6 rounded-[2.5rem] shadow-2xl border-4 border-white focus:border-red-500 focus:ring-0 outline-none text-xl bg-white font-bold"
             />
             <button
               type="submit"
@@ -151,13 +142,9 @@ const App: React.FC = () => {
           <button
             onClick={handleCurrentLocation}
             disabled={state.loading}
-            className="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-sm shadow-2xl hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-sm shadow-2xl hover:bg-red-600 transition-all"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            내 주변 실시간 스캔 (GPS)
+            🗺️ 내 주변 실시간 스캔 (GPS)
           </button>
         </div>
       </div>
@@ -165,14 +152,14 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-4xl mx-auto w-full px-4 pb-24">
         {!state.loading && !streamingContent && !state.error && (
           <div className="text-center py-20 animate-fade-in">
-            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🏙️</div>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디로 가볼까요?</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-12 max-w-2xl mx-auto">
+            <div className="text-8xl mb-10">🍜</div>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-12">어디로 모실까요?</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
               {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '소호'].map(tag => (
                 <button
                   key={tag}
                   onClick={() => handleSearch(undefined, tag)}
-                  className="px-6 py-6 bg-white rounded-3xl text-slate-800 font-black border-2 border-slate-100 hover:border-red-500 hover:text-red-600 hover:shadow-2xl hover:shadow-red-500/10 transition-all active:scale-95 text-base shadow-sm"
+                  className="px-6 py-6 bg-white rounded-3xl text-slate-800 font-black border-2 border-slate-100 hover:border-red-500 hover:text-red-600 shadow-sm transition-all"
                 >
                   📍 {tag}
                 </button>
@@ -182,22 +169,21 @@ const App: React.FC = () => {
         )}
 
         {state.error && (
-          <div className="bg-white border-4 border-red-50 rounded-[3rem] p-12 text-center shadow-2xl animate-fade-in mt-10">
-            <div className="text-7xl mb-8">🛠️</div>
-            <div className="text-slate-900 font-black text-2xl mb-4">안내 말씀 드립니다!</div>
-            <p className="text-slate-500 mb-10 font-bold text-lg leading-relaxed">{state.error}</p>
+          <div className="bg-white border-4 border-red-50 rounded-[3rem] p-12 text-center shadow-2xl mt-10">
+            <div className="text-7xl mb-8">⚠️</div>
+            <p className="text-slate-800 mb-10 font-bold text-xl">{state.error}</p>
             <div className="flex flex-col gap-4 max-w-xs mx-auto">
               <button 
-                onClick={handleApiKeySetup}
-                className="px-8 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95"
+                onClick={fixConnection}
+                className="px-8 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg shadow-xl"
               >
-                API 키 다시 연결하기
+                연결 복구하기
               </button>
               <button 
                 onClick={() => handleSearch()}
-                className="px-8 py-5 bg-slate-200 text-slate-700 rounded-[2rem] font-black text-lg hover:bg-slate-300 transition-all active:scale-95"
+                className="px-8 py-5 bg-slate-200 text-slate-700 rounded-[2rem] font-black text-lg"
               >
-                무시하고 다시 시도
+                다시 시도
               </button>
             </div>
           </div>
@@ -206,30 +192,25 @@ const App: React.FC = () => {
         {state.loading && !streamingContent && <LoadingView />}
 
         {streamingContent && (
-          <div className="bg-white rounded-[4rem] shadow-2xl border border-slate-100 p-8 md:p-16 animate-fade-in overflow-hidden" ref={scrollRef}>
+          <div className="bg-white rounded-[4rem] shadow-2xl p-8 md:p-16 animate-fade-in border border-slate-100">
             <div className="flex items-center gap-6 mb-12 pb-10 border-b-4 border-slate-50">
-              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white transform -rotate-3 font-black">👨‍✈️</div>
+              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white transform -rotate-3 font-black">🇭🇰</div>
               <div>
-                <h3 className="font-black text-slate-900 text-2xl md:text-3xl tracking-tighter leading-tight">
-                  {state.userLocation ? "📍 실시간 주변 분석 리포트" : `🏙️ ${state.query} 지역 정밀 리포트`}
+                <h3 className="font-black text-slate-900 text-2xl md:text-3xl tracking-tighter">
+                  {state.userLocation ? "📍 실시간 주변 분석 리포트" : `🏙️ ${state.query} 정밀 리포트`}
                 </h3>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse"></span>
-                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Grounding Engine Connected</p>
-                </div>
+                <p className="text-xs text-green-600 font-black mt-2">GROUNDING ACTIVE</p>
               </div>
             </div>
-            
             <ContentDisplay content={streamingContent} sources={streamingSources} />
           </div>
         )}
       </main>
 
-      <footer className="bg-slate-900 text-slate-500 py-24 px-8 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-amber-400 to-red-600 opacity-50"></div>
-        <p className="font-black tracking-[0.4em] text-slate-400 uppercase mb-6 text-sm">Hong Kong Kim Ban Jang • 2025</p>
-        <p className="max-w-xl mx-auto text-xs leading-relaxed opacity-40 font-bold mb-8">
-          김반장의 20년 현지 경력과 실시간 구글 AI 검색 데이터를 결합한 리포트입니다.<br/>정보가 실제와 다를 수 있으니 방문 전 구글 맵을 최종 확인하세요.
+      <footer className="bg-slate-900 text-slate-500 py-16 px-8 text-center mt-auto">
+        <p className="font-black tracking-[0.4em] uppercase mb-4 text-sm">Hong Kong Kim Ban Jang • 2025</p>
+        <p className="text-xs opacity-40 font-bold">
+          실시간 구글 AI 데이터를 기반으로 분석된 정보입니다.<br/>방문 전 구글 맵의 최신 영업시간을 확인하세요.
         </p>
       </footer>
     </div>

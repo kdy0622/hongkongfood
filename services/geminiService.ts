@@ -20,9 +20,8 @@ const SYSTEM_INSTRUCTION = `
 💰 전체 예산: HKD (평균금액) (약 00,000원)
 
 🍴 대표 메뉴:
-- [메뉴명 / HKD 가격 (약 0,000원) / 메뉴의 맛과 특징에 대한 1줄 상세 설명]
-- [메뉴명 / HKD 가격 (약 0,000원) / 메뉴의 맛과 특징에 대한 1줄 상세 설명]
-- [메뉴명 / HKD 가격 (약 0,000원) / 메뉴의 맛과 특징에 대한 1줄 상세 설명]
+- [메뉴명 / HKD 가격 (약 0,000원) / 메뉴 특징 1줄 설명]
+- [메뉴명 / HKD 가격 (약 0,000원) / 메뉴 특징 1줄 설명]
 
 📸 [식당사진: 식당이름 홍콩]
 📸 [메뉴사진: 식당이름 대표메뉴명]
@@ -33,7 +32,7 @@ const SYSTEM_INSTRUCTION = `
 [SECTION: 가볼만한곳]
 ### [TOP N] 장소명
 📸 [장소사진: 장소이름 홍콩]
-💡 설명: (장소의 특징과 방문하기 좋은 시간대)
+💡 설명: (장소 특징과 방문 팁)
 📍 지도: https://www.google.com/maps/search/?api=1&query=장소이름+홍콩
 
 [SECTION: 꿀팁]
@@ -48,14 +47,13 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // 시스템 환경 변수에 설정된 API_KEY를 즉시 사용합니다.
-  // 사용자가 이미 입력한 키는 process.env.API_KEY에 자동으로 주입됩니다.
+  // 시스템이 제공하는 process.env.API_KEY를 믿고 바로 인스턴스를 생성합니다.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
     ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘.`
-    : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해라.`;
+    : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 포함해라.`;
 
   try {
     const result = await ai.models.generateContentStream({
@@ -63,7 +61,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }], // 실시간 구글 검색 엔진 활성화
+        tools: [{ googleSearch: {} }],
       },
     });
 
