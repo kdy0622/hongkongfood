@@ -9,7 +9,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const lines = content.split('\n').filter(l => l.trim() !== '');
   
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-8 pb-20">
       {lines.map((line, index) => {
         if (line.includes('[SECTION:')) return null;
 
@@ -20,62 +20,65 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           const topBadge = title.match(/\[TOP \d+\]/)?.[0];
           
           return (
-            <div key={index} className="mt-14 mb-6 animate-fade-in">
+            <div key={index} className="mt-20 mb-8 animate-fade-in group">
               {topBadge && (
-                <span className="inline-block px-2.5 py-1 bg-red-600 text-white text-[10px] font-black rounded-md mb-3 shadow-sm uppercase tracking-tighter">
+                <span className="inline-block px-3 py-1 bg-slate-900 text-white text-[10px] font-black rounded-lg mb-4 shadow-lg uppercase tracking-widest">
                   {topBadge}
                 </span>
               )}
-              <h3 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight">
+              <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight group-hover:text-red-600 transition-colors">
                 {namePart}
               </h3>
             </div>
           );
         }
         
-        // 평점
+        // 평점 섹션
         if (line.startsWith('⭐')) {
           return (
-            <div key={index} className="inline-flex items-center px-4 py-2 bg-amber-50 text-amber-700 rounded-2xl text-xs font-black border border-amber-100 shadow-sm mb-2">
-              {line}
+            <div key={index} className="flex flex-wrap gap-2 mb-4">
+              <div className="inline-flex items-center px-5 py-2.5 bg-amber-50 text-amber-700 rounded-full text-xs font-black border-2 border-amber-100 shadow-sm">
+                {line}
+              </div>
             </div>
           );
         }
 
-        // 전체 예산
+        // 예산 정보
         if (line.startsWith('💰')) {
           return (
-            <div key={index} className="text-slate-500 text-sm font-bold flex items-center mb-6">
-              <span className="mr-2 text-lg">💵</span> {line.replace('💰', '').trim()}
+            <div key={index} className="text-slate-500 text-sm font-black flex items-center mb-8 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+              <span className="mr-3 text-2xl">🧾</span> {line.replace('💰', '').trim()}
             </div>
           );
         }
 
-        // 메뉴 상세 카드 (프롬프트에서 약속된 [- [이름 / 가격 / 설명]] 형식 파싱)
+        // 프리미엄 메뉴 카드
         if (line.startsWith('- [') && line.includes('/')) {
           const contentInside = line.match(/\[(.*?)\]/)?.[1];
           if (!contentInside) return null;
           
           const parts = contentInside.split('/').map(p => p.trim());
-          if (parts.length >= 2) {
-            const [name, price, desc] = parts;
-            return (
-              <div key={index} className="bg-white border border-slate-100 rounded-2xl p-5 mb-3 shadow-sm hover:shadow-md transition-all border-l-4 border-l-red-500 group">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-black text-slate-800 text-base group-hover:text-red-600 transition-colors">{name}</span>
-                  <span className="text-red-600 font-black text-[11px] shrink-0 ml-4 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100">{price}</span>
-                </div>
-                {desc && (
-                  <p className="text-slate-500 text-xs leading-relaxed font-medium italic">
-                    "{desc}"
-                  </p>
-                )}
+          const [name, price, desc] = parts;
+          
+          return (
+            <div key={index} className="bg-white border-2 border-slate-100 rounded-3xl p-6 mb-4 shadow-sm hover:shadow-xl hover:border-red-100 transition-all border-l-8 border-l-red-600 group">
+              <div className="flex justify-between items-start mb-3">
+                <span className="font-black text-slate-800 text-lg group-hover:text-red-600 transition-colors">{name}</span>
+                <span className="text-red-600 font-black text-xs shrink-0 ml-4 bg-red-50 px-3 py-1.5 rounded-xl border border-red-100 shadow-inner">
+                  {price}
+                </span>
               </div>
-            );
-          }
+              {desc && (
+                <p className="text-slate-500 text-xs leading-relaxed font-bold opacity-80 italic">
+                  " {desc} "
+                </p>
+              )}
+            </div>
+          );
         }
 
-        // 사진 검색 버튼 (식당 / 메뉴 / 장소 분기 처리)
+        // 사진 검색 버튼 (식당 / 메뉴 / 장소 고도화)
         if (line.includes('사진:')) {
           const isMenu = line.includes('메뉴사진');
           const isPlace = line.includes('장소사진');
@@ -85,36 +88,37 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           const searchUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(keyword)}`;
           
           return (
-            <div key={index} className="inline-block mr-2 mb-4">
+            <div key={index} className="inline-block mr-3 mb-4">
               <a 
                 href={searchUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] font-black transition-all active:scale-95 shadow-md border ${
+                className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-[11px] font-black transition-all active:scale-95 shadow-xl border-2 ${
                   isMenu 
                     ? 'bg-white border-slate-200 text-slate-700 hover:bg-red-50 hover:border-red-200' 
                     : 'bg-slate-900 border-slate-900 text-white hover:bg-red-600'
                 }`}
               >
-                {isMenu ? '🍱 메뉴 실물 확인' : (isPlace ? '📸 장소 현장 사진' : '🏢 식당 내부 사진')} 보기
+                {isMenu ? '🍛 메뉴 실제 비주얼' : (isPlace ? '📸 현장 분위기 보기' : '🏢 식당 외부/내부')} 사진 확인
               </a>
             </div>
           );
         }
 
-        // 꿀팁
+        // 김반장의 통찰 (꿀팁)
         if (line.startsWith('💡')) {
           return (
-            <div key={index} className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-2xl shadow-sm my-6">
-              <p className="text-blue-900 text-sm leading-relaxed">
-                <span className="font-black block text-[10px] text-blue-600 uppercase mb-2 tracking-widest">Guide's Insight</span>
+            <div key={index} className="bg-blue-600 border-2 border-blue-400 p-8 rounded-[2.5rem] shadow-2xl my-10 relative overflow-hidden group">
+              <div className="absolute -top-10 -right-10 text-9xl opacity-10 font-black text-white group-hover:scale-110 transition-transform">TIP</div>
+              <p className="text-white text-base md:text-lg leading-relaxed relative z-10 font-bold">
+                <span className="font-black block text-[11px] text-blue-200 uppercase mb-4 tracking-[0.3em]">Ban-Jang's Secret Tip</span>
                 {line.replace('💡', '').replace('김반장 꿀팁:', '').replace('설명:', '').trim()}
               </p>
             </div>
           );
         }
 
-        // 지도 렌더링 및 길찾기 버튼
+        // 지도 및 길찾기 액션
         if (line.includes('📍')) {
           const urlMatch = line.match(/(https?:\/\/[^\s]+)/g);
           const rawUrl = urlMatch ? urlMatch[0] : '';
@@ -126,30 +130,30 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
 
           return (
-            <div key={index} className="space-y-4 pt-6 pb-12 border-b border-slate-100 mb-10 last:border-0">
-              <div className="w-full h-72 bg-slate-200 rounded-[2.5rem] overflow-hidden shadow-inner border border-slate-200 relative">
+            <div key={index} className="space-y-6 pt-10 pb-20 border-b-2 border-slate-50 mb-16 last:border-0">
+              <div className="w-full h-80 bg-slate-200 rounded-[3rem] overflow-hidden shadow-inner border-4 border-white relative group">
                 <iframe 
                   width="100%" height="100%" frameBorder="0" 
                   src={embedUrl} title="Google Maps"
-                  className="grayscale-[10%] hover:grayscale-0 transition-all duration-700"
+                  className="grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000"
                 ></iframe>
-                <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-[9px] font-black text-slate-800 shadow-sm">
-                  GOOGLE MAPS LIVE PREVIEW
+                <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur px-4 py-1.5 rounded-full text-[10px] font-black text-white shadow-2xl">
+                  📍 LIVE GOOGLE MAPS DATA
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <a 
                   href={directionsUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-[3] flex items-center justify-center gap-2 py-5 bg-slate-900 text-white rounded-[1.8rem] text-sm font-black hover:bg-red-600 transition-all shadow-xl active:scale-95"
+                  className="flex-[4] flex items-center justify-center gap-3 py-6 bg-red-600 text-white rounded-[2rem] text-base font-black hover:bg-slate-900 transition-all shadow-2xl active:scale-95"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                  실시간 경로 찾기
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                  지금 여기로 길찾기
                 </a>
                 <a 
                   href={rawUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-1 flex items-center justify-center bg-white border-2 border-slate-200 text-slate-800 rounded-[1.8rem] hover:bg-slate-50 transition-all active:scale-95"
+                  className="flex-1 flex items-center justify-center bg-white border-4 border-slate-100 text-slate-800 rounded-[2rem] hover:bg-slate-50 transition-all active:scale-95 shadow-lg"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                 </a>
               </div>
             </div>
@@ -157,7 +161,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
         }
 
         return (
-          <p key={index} className="text-slate-600 leading-relaxed text-sm md:text-base font-medium mb-2">
+          <p key={index} className="text-slate-700 leading-relaxed text-base font-bold mb-4 opacity-90">
             {line}
           </p>
         );
