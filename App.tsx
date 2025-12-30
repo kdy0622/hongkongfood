@@ -1,9 +1,9 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { AppState, GroundingSource } from './types';
+import { AppState, GroundingSource, LatLng } from './types';
 import { getTravelGuideStream } from './services/geminiService';
 import LoadingView from './components/LoadingView';
-import MarkdownRenderer from './components/MarkdownRenderer';
+import ContentDisplay from './components/ContentDisplay';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -11,38 +11,41 @@ const App: React.FC = () => {
     loading: false,
     result: null,
     error: null,
+    userLocation: null,
   });
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingSources, setStreamingSources] = useState<GroundingSource[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll as content grows
-  useEffect(() => {
-    if (state.loading && scrollRef.current) {
-      window.scrollTo({
-        top: document.body.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, [streamingContent, state.loading]);
-
-  const handleSearch = useCallback(async (e?: React.FormEvent) => {
+  const handleSearch = useCallback(async (e?: React.FormEvent, overrideQuery?: string, latLngOverride?: LatLng) => {
     if (e) e.preventDefault();
-    if (!state.query.trim()) return;
+    const queryToUse = overrideQuery || state.query;
+    
+    if (!queryToUse.trim() && !latLngOverride) return;
 
-    setState(prev => ({ ...prev, loading: true, error: null, result: null }));
+    setState(prev => ({ 
+      ...prev, 
+      loading: true, 
+      error: null, 
+      result: null, 
+      query: queryToUse || (latLngOverride ? '현재 위치 주변' : ''),
+      userLocation: latLngOverride || null
+    }));
     setStreamingContent('');
     setStreamingSources([]);
     
     try {
       await getTravelGuideStream(
-        state.query, 
-        (text) => setStreamingContent(text),
+        queryToUse, 
+        latLngOverride || null,
+        (text) => {
+          setStreamingContent(text);
+        },
         (sources) => setStreamingSources(prev => {
-          // Add only unique sources
           const newSources = [...prev];
           sources.forEach(s => {
-            if (!newSources.some(ns => ns.web?.uri === s.web?.uri)) {
+            const uri = s.web?.uri || (s as any).maps?.uri;
+            if (uri && !newSources.some(ns => (ns.web?.uri || (ns as any).maps?.uri) === uri)) {
               newSources.push(s);
             }
           });
@@ -53,118 +56,193 @@ const App: React.FC = () => {
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        result: { content: '', sources: [] } // Just to trigger the view state
+        result: { content: '', sources: [] }
       }));
     } catch (err: any) {
       setState(prev => ({ ...prev, loading: false, error: err.message }));
     }
   }, [state.query]);
 
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setState(prev => ({ ...prev, error: "이 브라우저에서는 GPS 기능을 지원하지 않습니다." }));
+      return;
+    }
+
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords: LatLng = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        handleSearch(undefined, "현재 내 주변", coords);
+      },
+      (error) => {
+        let errorMessage = "위치 정보를 가져올 수 없습니다.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "위치 정보 접근 권한이 거부되었습니다. 설정에서 권한을 허용해 주세요.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "위치 정보를 사용할 수 없습니다. GPS 신호를 확인해 주세요.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "위치 정보를 가져오는 시간이 초과되었습니다. 다시 시도해 주세요.";
+            break;
+        }
+        console.error("Geolocation Error Code:", error.code, "Message:", error.message);
+        setState(prev => ({ ...prev, loading: false, error: errorMessage }));
+      },
+      options
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="hk-gradient text-white py-10 px-6 shadow-lg transition-all duration-500">
-        <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-          <div className="inline-block px-4 py-1 bg-white/20 rounded-full text-sm font-medium mb-4 backdrop-blur-sm">
-            🇭🇰 홍콩 로컬 20년 경력
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden">
+      {/* 헤더 섹션 */}
+      <header className="glass-header text-white pt-12 pb-24 px-6 relative overflow-hidden shrink-0">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="text-[15rem] font-black absolute -bottom-10 -right-10 leading-none">HK</div>
+        </div>
+        <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
+          <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-bold mb-6 backdrop-blur-md border border-white/30 uppercase tracking-widest">
+            Expert Data Analytics • Real-time Location
           </div>
-          <h1 className="text-4xl md:text-5xl font-black mb-3 drop-shadow-md">
-            홍콩 김반장
+          <h1 className="text-4xl md:text-6xl font-black mb-4 drop-shadow-2xl tracking-tighter">
+            홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
           </h1>
-          <p className="text-lg opacity-90 font-medium">
-            "거~ 답답하게 기다리지 마세요! 바로바로 띄워드립니다."
+          <p className="text-sm md:text-lg opacity-90 font-bold max-w-md leading-relaxed">
+            "거~ 근처 맛집 찾으세요? 김반장이 지금 바로<br/>한국인 찐맛집 TOP 10 싹 훑어드립니다!"
           </p>
         </div>
       </header>
 
-      <div className="sticky top-0 z-50 px-4 -mt-8">
-        <div className="max-w-2xl mx-auto">
+      {/* 검색 바 영역 (스티키) */}
+      <div className="sticky top-0 z-50 px-4 -mt-8 mb-8">
+        <div className="max-w-2xl mx-auto flex flex-col gap-3">
           <form onSubmit={handleSearch} className="relative flex items-center">
             <input
               type="text"
               value={state.query}
               onChange={(e) => setState(prev => ({ ...prev, query: e.target.value }))}
-              placeholder="센트럴, 침사추이, 몽콕... 어디가 궁금해?"
-              className="w-full px-6 py-4 rounded-2xl shadow-xl border-none focus:ring-4 focus:ring-red-200 outline-none text-lg pr-16 bg-white"
+              placeholder="지역명(예: 침사추이) 또는 메뉴 검색"
+              className="w-full px-7 py-5 rounded-[2rem] shadow-2xl border-4 border-white focus:border-red-500 focus:ring-0 outline-none text-lg pr-16 bg-white transition-all placeholder:text-slate-400 font-medium"
             />
             <button
               type="submit"
               disabled={state.loading}
-              className="absolute right-2 p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50"
+              className="absolute right-3 p-3.5 bg-red-600 text-white rounded-full hover:bg-slate-900 transition-all active:scale-90 disabled:opacity-50 shadow-lg"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
+              {state.loading ? (
+                <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              )}
             </button>
           </form>
+          
+          <button
+            onClick={handleCurrentLocation}
+            disabled={state.loading}
+            className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 text-white rounded-[1.5rem] font-black text-sm shadow-xl hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            📍 내 주변 찐맛집 지금 찾기 (GPS)
+          </button>
         </div>
       </div>
 
-      <main className="flex-grow max-w-4xl mx-auto w-full px-4 md:px-6 py-10">
+      <main className="flex-grow max-w-3xl mx-auto w-full px-4 pb-20 overflow-visible">
+        {/* 초기 화면 */}
         {!state.loading && !streamingContent && !state.error && (
-          <div className="text-center py-20 opacity-80">
-            <div className="text-7xl mb-6">🚋</div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">홍콩 찐맛집, 김반장이 다 압니다.</h2>
-            <p className="text-slate-500">원하시는 지역이나 역 이름을 던져주세요!</p>
-            <div className="flex flex-wrap justify-center gap-2 mt-8">
-              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '케네디타운'].map(tag => (
+          <div className="text-center py-16 animate-fade-in">
+            <div className="text-7xl mb-8 transform hover:scale-110 transition-transform cursor-default">🍜</div>
+            <h2 className="text-2xl md:text-4xl font-black text-slate-800 mb-4 tracking-tight">어디로 모실까요?</h2>
+            <p className="text-slate-500 font-bold mb-12">GPS를 켜거나 아래 지역을 선택해 보세요.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '야우마테이'].map(tag => (
                 <button
                   key={tag}
-                  onClick={() => {
-                    setState(prev => ({ ...prev, query: tag }));
-                    setTimeout(() => handleSearch(), 10);
-                  }}
-                  className="px-4 py-2 bg-white rounded-xl text-slate-600 border border-slate-200 hover:border-red-400 hover:text-red-600 transition-all shadow-sm"
+                  onClick={() => handleSearch(undefined, tag)}
+                  className="px-6 py-5 bg-white rounded-2xl text-slate-800 font-black border border-slate-200 hover:border-red-500 hover:text-red-600 hover:shadow-xl hover:shadow-red-100 transition-all active:scale-95 text-sm"
                 >
-                  #{tag}
+                  🏙️ {tag}
                 </button>
               ))}
             </div>
           </div>
         )}
 
+        {/* 에러 화면 */}
         {state.error && (
-          <div className="bg-red-50 border border-red-200 rounded-3xl p-8 text-center animate-in zoom-in-95 duration-300">
-            <div className="text-red-600 text-4xl mb-4">😅</div>
-            <div className="text-red-800 font-bold text-lg mb-2">에고, 김반장이 길을 잃었나 봐요.</div>
-            <p className="text-red-600/80 mb-6">{state.error}</p>
+          <div className="bg-white border border-red-100 rounded-[2.5rem] p-12 text-center shadow-2xl animate-fade-in mt-10">
+            <div className="text-6xl mb-8">🫖</div>
+            <div className="text-slate-900 font-black text-2xl mb-4">앗! 김반장 레이더에 문제가 생겼어요.</div>
+            <p className="text-slate-500 mb-10 font-medium leading-relaxed">{state.error}</p>
             <button 
               onClick={() => handleSearch()}
-              className="px-8 py-3 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+              className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-slate-900 transition-all shadow-xl shadow-red-200 active:scale-95"
             >
-              다시 부르기
+              다시 시도하기
             </button>
           </div>
         )}
 
+        {/* 로딩 화면 */}
         {state.loading && !streamingContent && <LoadingView />}
 
+        {/* 콘텐츠 표시 */}
         {streamingContent && (
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 md:p-12 transition-all duration-500 overflow-hidden" ref={scrollRef}>
-            <div className="flex items-center space-y-0 space-x-3 mb-8 pb-4 border-b border-slate-100">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-2xl">👨‍✈️</div>
+          <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-6 md:p-12 transition-all duration-700 overflow-visible animate-fade-in" ref={scrollRef}>
+            <div className="flex items-center gap-5 mb-10 pb-8 border-b border-slate-100">
+              <div className="w-16 h-16 bg-red-600 rounded-3xl flex items-center justify-center text-3xl shadow-lg shadow-red-100 shrink-0">👨‍✈️</div>
               <div>
-                <h3 className="font-bold text-slate-800">홍콩 김반장의 로컬 추천</h3>
-                <p className="text-xs text-slate-400 font-medium uppercase tracking-tight">LIVE UPDATING...</p>
+                <h3 className="font-black text-slate-900 text-xl tracking-tight">
+                  {state.userLocation ? "📍 내 주변 실시간 리포트" : `🏙️ ${state.query} 실시간 리포트`}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                  <p className="text-[11px] text-green-600 font-black uppercase tracking-widest">분석 완료 중...</p>
+                </div>
               </div>
             </div>
             
-            <MarkdownRenderer content={streamingContent} />
+            <ContentDisplay content={streamingContent} />
             
+            {/* 하단 소스 */}
             {streamingSources.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-slate-100 animate-in fade-in duration-1000">
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Information Sources</h3>
-                <div className="flex flex-wrap gap-2">
-                  {streamingSources.map((source, i) => (
-                    <a 
-                      key={i} 
-                      href={source.web?.uri} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[11px] px-3 py-1.5 bg-slate-50 text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all truncate max-w-[180px] border border-slate-100"
-                    >
-                      {source.web?.title || 'Google Search'}
-                    </a>
-                  ))}
+              <div className="mt-20 pt-10 border-t border-slate-100">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6">Verified Information Sources</h3>
+                <div className="flex flex-wrap gap-3">
+                  {streamingSources.slice(0, 8).map((source, i) => {
+                    const s = source as any;
+                    const uri = s.web?.uri || s.maps?.uri;
+                    const title = s.web?.title || s.maps?.title || 'Location Data';
+                    return (
+                      <a 
+                        key={i} 
+                        href={uri} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[11px] px-4 py-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-red-600 hover:text-white transition-all border border-slate-200 font-black"
+                      >
+                        {title.substring(0, 30)}
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -172,15 +250,17 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-slate-900 text-slate-500 py-12 px-6 text-center text-sm">
-        <div className="max-w-4xl mx-auto space-y-4">
-          <div className="flex justify-center space-x-4">
-            <span className="w-2 h-2 bg-red-600 rounded-full"></span>
-            <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+      <footer className="bg-slate-900 text-slate-500 py-20 px-6 text-center shrink-0">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-center gap-4 mb-8">
+            <div className="w-12 h-1.5 bg-red-600 rounded-full"></div>
+            <div className="w-12 h-1.5 bg-amber-500 rounded-full"></div>
+            <div className="w-12 h-1.5 bg-white opacity-20 rounded-full"></div>
           </div>
-          <p>© 2025 홍콩 김반장 - Real-time Local Guide</p>
-          <p className="opacity-60">본 서비스는 최신 구글 검색 데이터를 기반으로 한 AI 가이드입니다.</p>
+          <p className="font-black tracking-[0.2em] text-slate-300 uppercase mb-4">Hong Kong Kim Ban Jang • AI Guide 2025</p>
+          <p className="max-w-md mx-auto text-[11px] leading-relaxed opacity-60 font-medium">
+            이 가이드는 실시간 구글 검색, 구글 맵, 유튜브 데이터를 분석하여 한국인 선호도를 반영해 제공됩니다. 현지 사정에 따라 내용이 다를 수 있으니 구글 맵을 최종 확인하세요.
+          </p>
         </div>
       </footer>
     </div>

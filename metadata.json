@@ -1,5 +1,7 @@
 {
   "name": "홍콩 김반장 - 로컬 맛집 가이드",
   "description": "20년 경력의 홍콩 전문 가이드 '홍콩 김반장'이 추천하는 한국인 맞춤형 홍콩 맛집 및 관광지 안내 서비스입니다. 실시간 데이터 기반의 찐맛집 정보를 확인하세요.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }

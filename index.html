@@ -3,21 +3,46 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>홍콩 김반장 - 홍콩 맛집 가이드</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>홍콩 김반장 - 로컬 맛집 가이드</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
-        .hk-gradient {
-            background: linear-gradient(135deg, #e11d48 0%, #fbbf24 100%);
+        .hk-neon-red {
+            background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
+        .hk-gold {
+            color: #fbbf24;
+        }
+        .glass-header {
+            background: rgba(225, 29, 72, 0.95);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
         }
     </style>
 <script type="importmap">
@@ -33,5 +58,6 @@
 </head>
 <body>
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
