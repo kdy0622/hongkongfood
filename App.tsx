@@ -1,14 +1,11 @@
 
-// App.tsx: Main component managing application state, search logic, and API key selection.
+// App.tsx: Main component managing application state, search logic, and UI flow.
 
 import React, { useState, useCallback, useRef } from 'react';
 import { AppState, GroundingSource, LatLng } from './types';
 import { getTravelGuideStream } from './services/geminiService';
 import LoadingView from './components/LoadingView';
 import ContentDisplay from './components/ContentDisplay';
-
-// Extend window for aistudio tools. 
-// Removed manual declaration of window.aistudio to resolve conflict with environment-provided types.
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -27,12 +24,9 @@ const App: React.FC = () => {
       if (window.aistudio) {
         await window.aistudio.openSelectKey();
         setState(prev => ({ ...prev, error: null }));
-      } else {
-        setState(prev => ({ ...prev, error: "API 키 설정 도구를 찾을 수 없습니다." }));
       }
     } catch (e) {
-      console.error("Failed to open key selector", e);
-      setState(prev => ({ ...prev, error: "API 키 선택 중 오류가 발생했습니다." }));
+      console.error("API key setup failed", e);
     }
   };
 
@@ -54,15 +48,7 @@ const App: React.FC = () => {
     setStreamingSources([]);
     
     try {
-      // Mandatory API Key check for Gemini 3 models as per aistudio guidelines.
-      if (window.aistudio) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await window.aistudio.openSelectKey();
-          // After openSelectKey, proceed immediately as the key is injected into process.env.API_KEY
-        }
-      }
-
+      // 시스템이 관리하는 API 키를 사용하여 즉시 스트리밍을 시작합니다.
       await getTravelGuideStream(
         queryToUse, 
         latLngOverride || null,
@@ -81,15 +67,12 @@ const App: React.FC = () => {
       
       setState(prev => ({ ...prev, loading: false }));
     } catch (err: any) {
-      console.error("Search Fail Detail:", err);
-      let errorMessage = err.message || "연결 오류가 발생했습니다.";
+      console.error("Search Error:", err);
+      let errorMessage = "김반장이 정보를 가져오는 중에 문제가 생겼습니다.";
       
-      // Specifically handle common API key or model errors
-      if (errorMessage.includes("API key") || 
-          errorMessage.includes("403") || 
-          errorMessage.includes("401") || 
-          errorMessage.includes("Requested entity was not found")) {
-        errorMessage = "API 키가 유효하지 않거나 설정되지 않았습니다. 하단의 'API 키 재설정' 버튼을 눌러 승인해 주세요.";
+      // 인증 오류 발생 시에만 키 설정을 제안합니다.
+      if (err.message?.includes("API key") || err.message?.includes("403") || err.message?.includes("401")) {
+        errorMessage = "시스템 API 키가 유효하지 않거나 만료되었습니다. 아래 버튼을 눌러 다시 설정해 주세요.";
       }
 
       setState(prev => ({ 
@@ -129,13 +112,13 @@ const App: React.FC = () => {
         </div>
         <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
           <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-black mb-6 backdrop-blur-md border border-white/30 uppercase tracking-[0.3em]">
-            Verified Local Grounding Engine
+            Hong Kong Expert • Data Grounding
           </div>
           <h1 className="text-5xl md:text-7xl font-black mb-6 drop-shadow-2xl tracking-tighter">
             홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
           </h1>
           <p className="text-base md:text-xl opacity-90 font-bold max-w-lg leading-relaxed">
-            "불편을 드려 죄송합니다! 시스템 API 키를 재정비했으니<br/>이제 홍콩의 진짜 속살을 보여드리죠!"
+            "불필요한 확인 절차는 뺐습니다!<br/>이제 바로 홍콩의 진짜 정보를 보여드리죠."
           </p>
         </div>
       </header>
@@ -174,7 +157,7 @@ const App: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
-            GPS 기반 내 주변 찐맛집 스캔
+            내 주변 실시간 스캔 (GPS)
           </button>
         </div>
       </div>
@@ -182,8 +165,8 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-4xl mx-auto w-full px-4 pb-24">
         {!state.loading && !streamingContent && !state.error && (
           <div className="text-center py-20 animate-fade-in">
-            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🍜</div>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디가 궁금하신가요?</h2>
+            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🏙️</div>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디로 가볼까요?</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-12 max-w-2xl mx-auto">
               {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '소호'].map(tag => (
                 <button
@@ -201,20 +184,20 @@ const App: React.FC = () => {
         {state.error && (
           <div className="bg-white border-4 border-red-50 rounded-[3rem] p-12 text-center shadow-2xl animate-fade-in mt-10">
             <div className="text-7xl mb-8">🛠️</div>
-            <div className="text-slate-900 font-black text-2xl mb-4">김반장의 긴급 점검 공지!</div>
+            <div className="text-slate-900 font-black text-2xl mb-4">안내 말씀 드립니다!</div>
             <p className="text-slate-500 mb-10 font-bold text-lg leading-relaxed">{state.error}</p>
             <div className="flex flex-col gap-4 max-w-xs mx-auto">
               <button 
                 onClick={handleApiKeySetup}
                 className="px-8 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95"
               >
-                1. API 키 재설정 (필수)
+                API 키 다시 연결하기
               </button>
               <button 
                 onClick={() => handleSearch()}
                 className="px-8 py-5 bg-slate-200 text-slate-700 rounded-[2rem] font-black text-lg hover:bg-slate-300 transition-all active:scale-95"
               >
-                2. 다시 시도
+                무시하고 다시 시도
               </button>
             </div>
           </div>
@@ -225,14 +208,14 @@ const App: React.FC = () => {
         {streamingContent && (
           <div className="bg-white rounded-[4rem] shadow-2xl border border-slate-100 p-8 md:p-16 animate-fade-in overflow-hidden" ref={scrollRef}>
             <div className="flex items-center gap-6 mb-12 pb-10 border-b-4 border-slate-50">
-              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white transform -rotate-3 font-black">🇭🇰</div>
+              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white transform -rotate-3 font-black">👨‍✈️</div>
               <div>
                 <h3 className="font-black text-slate-900 text-2xl md:text-3xl tracking-tighter leading-tight">
-                  {state.userLocation ? "📍 실시간 내 주변 보고서" : `🏙️ ${state.query} 지역 정밀 분석`}
+                  {state.userLocation ? "📍 실시간 주변 분석 리포트" : `🏙️ ${state.query} 지역 정밀 리포트`}
                 </h3>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse"></span>
-                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Grounding System Active</p>
+                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Grounding Engine Connected</p>
                 </div>
               </div>
             </div>
@@ -246,7 +229,7 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-amber-400 to-red-600 opacity-50"></div>
         <p className="font-black tracking-[0.4em] text-slate-400 uppercase mb-6 text-sm">Hong Kong Kim Ban Jang • 2025</p>
         <p className="max-w-xl mx-auto text-xs leading-relaxed opacity-40 font-bold mb-8">
-          본 서비스는 실시간 구글 AI 데이터를 기반으로 생성됩니다.<br/>정보의 정확성을 위해 방문 전 반드시 구글 맵의 영업시간을 다시 한 번 확인해 주세요.
+          김반장의 20년 현지 경력과 실시간 구글 AI 검색 데이터를 결합한 리포트입니다.<br/>정보가 실제와 다를 수 있으니 방문 전 구글 맵을 최종 확인하세요.
         </p>
       </footer>
     </div>

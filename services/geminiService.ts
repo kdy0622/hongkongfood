@@ -48,13 +48,9 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // CRITICAL: Must use process.env.API_KEY as per environment rules.
-  // The value is injected after the user selects their key via the UI dialog.
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY_MISSING: 시스템 API 키가 설정되지 않았습니다.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // 시스템 환경 변수에 설정된 API_KEY를 즉시 사용합니다.
+  // 사용자가 이미 입력한 키는 process.env.API_KEY에 자동으로 주입됩니다.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
@@ -67,7 +63,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }], // Enable real-time Google Search grounding
+        tools: [{ googleSearch: {} }], // 실시간 구글 검색 엔진 활성화
       },
     });
 
@@ -84,7 +80,7 @@ export const getTravelGuideStream = async (
       }
     }
   } catch (error: any) {
-    console.error("Gemini API Error Detail:", error);
+    console.error("Gemini API Error:", error);
     throw error; 
   }
 };
