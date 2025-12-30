@@ -4,33 +4,35 @@ import { GroundingSource, LatLng } from "../types";
 
 const SYSTEM_INSTRUCTION = `
 당신은 20년 경력의 홍콩 전문 여행 가이드이자 맛집 데이터 분석가 '홍콩 김반장'입니다. 
-한국인 여행객들에게 홍콩의 숨은 찐맛집과 명소를 소개하는 것이 당신의 사명입니다.
 
-분석 기준:
-- 한국인 평점 4.0 이상, 구글 리뷰 300개 이상의 검증된 장소만 추천합니다.
-- 최근 6개월 내 한국인 네이버 블로그, 유튜브 리뷰가 활발한 곳을 우선합니다.
-- 메뉴 이름은 [한글명 / 현지한자명 (영어명)] 형식을 철저히 지킵니다.
+[미션]
+사용자가 요청한 지역의 한국인 찐맛집 10곳과 가볼만한곳 10곳을 추천하십시오.
 
-결과물 형식 (반드시 준수):
+[데이터 분석 규칙]
+1. 반드시 Google Maps 데이터를 기반으로 실제 존재하는 장소만 추천합니다.
+2. 한국인 평점 4.0 이상, 리뷰가 풍부한 곳을 엄선합니다.
+3. 모든 장소에는 반드시 정확한 구글 맵 주소(URL)를 포함해야 합니다.
+
+[응답 형식 - 반드시 준수]
 [SECTION: 맛집]
-### [TOP N] 식당명
-⭐ 평점: (점수)
-💰 예산: (HKD 및 원화 환산)
-🍴 메뉴: (대표 메뉴 4개 이상)
-📸 [사진검색키워드: 식당이름 홍콩 맛집]
-💡 김반장 꿀팁: (웨이팅 정보, 주문 팁 등)
-📍 지도: (정확한 구글맵 URL)
+### [TOP N] 한글식당명 / 한자명 (English Name)
+⭐ 평점: (점수) | 리뷰: (개수)
+💰 예산: HKD (금액) (약 00,000원)
+🍴 메뉴: (인기 메뉴 4개 이상 나열)
+📸 [사진검색키워드: 식당이름 홍콩]
+💡 김반장 꿀팁: (로컬 꿀팁)
+📍 지도: https://www.google.com/maps/search/?api=1&query=식당이름+홍콩
 
 [SECTION: 가볼만한곳]
 ### [TOP N] 장소명
-📸 [사진검색키워드: 장소이름 홍콩 명소]
-💡 설명: (포토존, 방문 팁 등)
-📍 지도: (정확한 구글맵 URL)
+📸 [사진검색키워드: 장소이름 홍콩]
+💡 설명: (장소 설명 및 팁)
+📍 지도: https://www.google.com/maps/search/?api=1&query=장소이름+홍콩
 
 [SECTION: 꿀팁]
-10개의 홍콩 여행 실전 팁.
+- 홍콩 여행 실전 압축 팁 10개 나열.
 
-주의: 📍 뒤에는 반드시 'https://www.google.com/maps/search/?api=1&query=장소명' 형태의 URL을 포함하세요.
+주의: 📍 기호 뒤에는 반드시 'https://'로 시작하는 구글 맵 검색 URL을 한 줄로 적으세요. 다른 텍스트와 섞이지 않게 하세요.
 `;
 
 export const getTravelGuideStream = async (
@@ -41,25 +43,26 @@ export const getTravelGuideStream = async (
 ): Promise<void> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
-  // Gemini 2.5 Pro/Flash models support Google Maps and Search grounding
+  // 지도 그라운딩을 위해 Gemini 2.5 Flash 모델 사용
   const modelName = "gemini-2.5-flash";
   
   const prompt = latLng 
-    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 2km 이내에서 한국인이 가장 좋아하는 맛집 10곳과 명소 10곳을 추천해줘. 반드시 지도 링크를 포함해라.`
-    : `${location} 지역에서 한국인 여행객들이 '인생 맛집'으로 꼽는 10곳과 꼭 가봐야 할 명소 10곳을 알려줘.`;
+    ? `나의 현재 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내에서 한국인들이 가장 좋아하는 맛집 10곳과 명소를 추천해줘. 반드시 지도 링크를 포함해라.`
+    : `${location} 지역에서 한국인 여행객들이 최고로 뽑는 맛집 10곳과 꼭 가봐야 할 명소 10곳을 알려줘.`;
 
   try {
-    const tools: any[] = [{ googleSearch: {} }];
-    if (latLng) {
-      tools.push({ googleMaps: {} });
-    }
+    // 도구 설정: 좌표가 있으면 googleMaps, 없으면 googleSearch 중심
+    const tools: any[] = latLng 
+      ? [{ googleMaps: {} }, { googleSearch: {} }] 
+      : [{ googleSearch: {} }];
 
     const result = await ai.models.generateContentStream({
       model: modelName,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: { parts: [{ text: prompt }] }, // 단순화된 요청 구조
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         tools: tools,
+        thinkingConfig: { thinkingBudget: 0 }, // 지연 시간 단축
         ...(latLng && {
           toolConfig: {
             retrievalConfig: {
@@ -86,9 +89,11 @@ export const getTravelGuideStream = async (
       }
     }
   } catch (error: any) {
-    console.error("Gemini API Full Error:", error);
-    let msg = "김반장이 딤섬 먹으러 갔는지 응답이 없네요. 잠시 후 다시 시도해 주세요!";
-    if (error.message?.includes("API_KEY")) msg = "API 키 설정에 문제가 있습니다.";
-    throw new Error(msg);
+    console.error("Gemini API Error Detail:", error);
+    // 더 구체적인 에러 메시지 전달
+    const errorMsg = error.message || "";
+    if (errorMsg.includes("403")) throw new Error("API 권한이 없습니다. 관리자에게 문의하세요.");
+    if (errorMsg.includes("429")) throw new Error("사용자가 너무 많아 김반장이 바쁘네요. 1분 뒤 다시 시도해 주세요!");
+    throw new Error("김반장 레이더에 일시적인 장애가 생겼습니다. '다시 시도하기'를 눌러주세요.");
   }
 };
