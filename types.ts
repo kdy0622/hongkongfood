@@ -1,6 +1,12 @@
 
+// types.ts: Define data structures for the application state and Gemini API grounding sources.
+
 export interface GroundingSource {
   web?: {
+    uri: string;
+    title: string;
+  };
+  maps?: {
     uri: string;
     title: string;
   };

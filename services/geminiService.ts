@@ -39,7 +39,7 @@ const SYSTEM_INSTRUCTION = `
 [SECTION: 꿀팁]
 - 홍콩 여행 실전 압축 팁 10개 나열.
 
-주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요. 다른 텍스트와 섞이지 않게 하세요.
+주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요.
 `;
 
 export const getTravelGuideStream = async (
@@ -48,18 +48,13 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // 호출 시점에 환경변수에서 API 키를 직접 가져와 인스턴스화
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("시스템 API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // 규정에 따라 반드시 process.env.API_KEY를 사용해야 합니다.
+  // 시스템이 자동으로 해당 환경 변수에 사용자의 키를 안전하게 주입합니다.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
-    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘. 메뉴별 가격과 1줄 설명을 포함할 것.`
+    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘.`
     : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해라.`;
 
   try {
@@ -68,7 +63,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }], // 실시간 검색 도구 활성화
+        tools: [{ googleSearch: {} }],
       },
     });
 
@@ -85,7 +80,7 @@ export const getTravelGuideStream = async (
       }
     }
   } catch (error: any) {
-    console.error("Gemini API Connection Error:", error);
-    throw new Error("김반장 서버 연결에 실패했습니다. API 키 유효성을 확인해 주세요.");
+    console.error("Gemini API Error Detail:", error);
+    throw error; 
   }
 };

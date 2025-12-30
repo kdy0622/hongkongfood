@@ -1,12 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+// ContentDisplay.tsx: Component for displaying travel report content with tabbed navigation and verified sources.
+
+import React, { useState } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
+import { GroundingSource } from '../types';
 
 interface ContentDisplayProps {
   content: string;
+  sources: GroundingSource[];
 }
 
-const ContentDisplay: React.FC<ContentDisplayProps> = ({ content }) => {
+const ContentDisplay: React.FC<ContentDisplayProps> = ({ content, sources }) => {
   const [activeTab, setActiveTab] = useState<'맛집' | '가볼만한곳' | '꿀팁'>('맛집');
 
   // Parse sections
@@ -15,14 +19,6 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({ content }) => {
     가볼만한곳: content.split('[SECTION: 가볼만한곳]')[1]?.split('[SECTION:')[0] || '',
     꿀팁: content.split('[SECTION: 꿀팁]')[1]?.split('[SECTION:')[0] || '',
   };
-
-  // Switch tab automatically if content for active tab is empty but others have content
-  useEffect(() => {
-    if (sections.맛집.length > 10) return;
-    if (sections.가볼만한곳.length > 10 && activeTab === '맛집') {
-      // Don't auto-switch, let user click, but show indicators
-    }
-  }, [content]);
 
   const tabs = [
     { id: '맛집', label: '🍽️ 맛집보기', color: 'bg-red-600' },
@@ -58,6 +54,36 @@ const ContentDisplay: React.FC<ContentDisplayProps> = ({ content }) => {
           </div>
         )}
       </div>
+
+      {/* Grounding Sources - MANDATORY: Extract and list URLs from groundingChunks as per Gemini API rules */}
+      {sources.length > 0 && (
+        <div className="mt-12 pt-8 border-t-2 border-slate-50 animate-in slide-in-from-bottom-4 duration-700">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+            <span className="w-4 h-px bg-slate-200"></span>
+            AI Verified Sources & Grounding Data
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {sources.map((source, idx) => {
+              const data = source.web || source.maps;
+              if (!data) return null;
+              return (
+                <a
+                  key={idx}
+                  href={data.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-600 hover:border-red-200 hover:text-red-600 hover:shadow-sm transition-all group"
+                >
+                  <span className="opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-transform">
+                    {source.web ? '🌐' : '📍'}
+                  </span>
+                  {data.title || '출처 확인'}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
