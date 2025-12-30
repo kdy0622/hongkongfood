@@ -44,8 +44,8 @@ const App: React.FC = () => {
         (sources) => setStreamingSources(prev => {
           const newSources = [...prev];
           sources.forEach(s => {
-            const uri = s.web?.uri || (s as any).maps?.uri;
-            if (uri && !newSources.some(ns => (ns.web?.uri || (ns as any).maps?.uri) === uri)) {
+            const uri = (s as any).web?.uri || (s as any).maps?.uri;
+            if (uri && !newSources.some(ns => ((ns as any).web?.uri || (ns as any).maps?.uri) === uri)) {
               newSources.push(s);
             }
           });
@@ -59,7 +59,12 @@ const App: React.FC = () => {
         result: { content: '', sources: [] }
       }));
     } catch (err: any) {
-      setState(prev => ({ ...prev, loading: false, error: err.message }));
+      console.error("Search Handler Error:", err);
+      setState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: typeof err === 'string' ? err : (err.message || "알 수 없는 오류가 발생했습니다.")
+      }));
     }
   }, [state.query]);
 
@@ -89,16 +94,15 @@ const App: React.FC = () => {
         let errorMessage = "위치 정보를 가져올 수 없습니다.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = "위치 정보 접근 권한이 거부되었습니다. 설정에서 권한을 허용해 주세요.";
+            errorMessage = "위치 정보 접근 권한이 거부되었습니다.";
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = "위치 정보를 사용할 수 없습니다. GPS 신호를 확인해 주세요.";
+            errorMessage = "위치 신호가 약합니다. 실외에서 시도해 주세요.";
             break;
           case error.TIMEOUT:
-            errorMessage = "위치 정보를 가져오는 시간이 초과되었습니다. 다시 시도해 주세요.";
+            errorMessage = "위치 확인 시간이 초과되었습니다.";
             break;
         }
-        console.error("Geolocation Error Code:", error.code, "Message:", error.message);
         setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       },
       options
@@ -221,31 +225,6 @@ const App: React.FC = () => {
             </div>
             
             <ContentDisplay content={streamingContent} />
-            
-            {/* 하단 소스 */}
-            {streamingSources.length > 0 && (
-              <div className="mt-20 pt-10 border-t border-slate-100">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-6">Verified Information Sources</h3>
-                <div className="flex flex-wrap gap-3">
-                  {streamingSources.slice(0, 8).map((source, i) => {
-                    const s = source as any;
-                    const uri = s.web?.uri || s.maps?.uri;
-                    const title = s.web?.title || s.maps?.title || 'Location Data';
-                    return (
-                      <a 
-                        key={i} 
-                        href={uri} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[11px] px-4 py-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-red-600 hover:text-white transition-all border border-slate-200 font-black"
-                      >
-                        {title.substring(0, 30)}
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>
