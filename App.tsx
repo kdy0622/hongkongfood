@@ -53,18 +53,18 @@ const App: React.FC = () => {
       
       setState(prev => ({ ...prev, loading: false }));
     } catch (err: any) {
-      console.error("Search Error:", err);
+      console.error("Search Fail:", err);
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: err.message || "네트워크 연결이 원활하지 않습니다."
+        error: err.message || "연결 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
       }));
     }
   }, [state.query]);
 
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setState(prev => ({ ...prev, error: "GPS 기능을 지원하지 않는 기기입니다." }));
+      setState(prev => ({ ...prev, error: "이 기기는 GPS를 지원하지 않습니다." }));
       return;
     }
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -77,37 +77,33 @@ const App: React.FC = () => {
         handleSearch(undefined, "", coords);
       },
       (error) => {
-        setState(prev => ({ ...prev, loading: false, error: "위치 정보를 가져올 수 없습니다. GPS 권한을 확인해 주세요." }));
+        setState(prev => ({ ...prev, loading: false, error: "위치 정보를 가져올 수 없습니다. 브라우저의 위치 권한을 확인해 주세요." }));
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
-  const handleRetry = () => {
-    handleSearch();
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden selection:bg-red-100 selection:text-red-600">
-      {/* 프리미엄 헤더 */}
+      {/* 김반장 시그니처 헤더 */}
       <header className="glass-header text-white pt-16 pb-32 px-6 relative overflow-hidden shrink-0">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="text-[20rem] font-black absolute -bottom-20 -right-20 leading-none">HK</div>
         </div>
         <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
           <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-black mb-6 backdrop-blur-md border border-white/30 uppercase tracking-[0.3em]">
-            20 Years Expertise • AI Analysis
+            Real-time AI Grounding • Expert Guide
           </div>
           <h1 className="text-5xl md:text-7xl font-black mb-6 drop-shadow-2xl tracking-tighter">
             홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
           </h1>
           <p className="text-base md:text-xl opacity-90 font-bold max-w-lg leading-relaxed">
-            "어이, 홍콩 찐맛집 찾으러 오셨나?<br/>김반장이 데이터로 싹 정리해줄게!"
+            "홍콩 찐맛집? 김반장이 구글 싹 뒤져서<br/>데이터로 정밀하게 뽑아드립쇼!"
           </p>
         </div>
       </header>
 
-      {/* 검색 바 스테이션 */}
+      {/* 검색 바 */}
       <div className="sticky top-0 z-50 px-4 -mt-10 mb-10">
         <div className="max-w-2xl mx-auto flex flex-col gap-4">
           <form onSubmit={handleSearch} className="relative flex items-center group">
@@ -115,7 +111,7 @@ const App: React.FC = () => {
               type="text"
               value={state.query}
               onChange={(e) => setState(prev => ({ ...prev, query: e.target.value }))}
-              placeholder="지역이나 식당을 입력하세요"
+              placeholder="지역명(예: 침사추이) 또는 메뉴 검색"
               className="w-full px-8 py-6 rounded-[2.5rem] shadow-2xl border-4 border-white focus:border-red-500 focus:ring-0 outline-none text-xl pr-20 bg-white transition-all placeholder:text-slate-300 font-bold"
             />
             <button
@@ -142,7 +138,7 @@ const App: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
-            현지 GPS 기반 내 주변 맛집 스캔
+            내 주변 실시간 맛집 스캔 (GPS)
           </button>
         </div>
       </div>
@@ -150,16 +146,16 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-4xl mx-auto w-full px-4 pb-24">
         {!state.loading && !streamingContent && !state.error && (
           <div className="text-center py-20 animate-fade-in">
-            <div className="text-8xl mb-10 transform hover:rotate-12 transition-transform cursor-default">🥟</div>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디가 궁금하신가?</h2>
+            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🍜</div>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디로 가고 싶으신가?</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-12 max-w-2xl mx-auto">
-              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '소호'].map(tag => (
+              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '콰이힝'].map(tag => (
                 <button
                   key={tag}
                   onClick={() => handleSearch(undefined, tag)}
                   className="px-6 py-6 bg-white rounded-3xl text-slate-800 font-black border-2 border-slate-100 hover:border-red-500 hover:text-red-600 hover:shadow-2xl hover:shadow-red-500/10 transition-all active:scale-95 text-base shadow-sm"
                 >
-                  🏮 {tag}
+                  🏙️ {tag}
                 </button>
               ))}
             </div>
@@ -168,14 +164,14 @@ const App: React.FC = () => {
 
         {state.error && (
           <div className="bg-white border-4 border-red-50 rounded-[3rem] p-16 text-center shadow-2xl animate-fade-in mt-10">
-            <div className="text-7xl mb-8">🥘</div>
-            <div className="text-slate-900 font-black text-3xl mb-4">어이쿠, 통신 상태가 별로네!</div>
+            <div className="text-7xl mb-8">🍲</div>
+            <div className="text-slate-900 font-black text-3xl mb-4">어이쿠, 연결이 끊겼네!</div>
             <p className="text-slate-500 mb-12 font-bold text-lg leading-relaxed">{state.error}</p>
             <button 
-              onClick={handleRetry}
-              className="px-16 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg hover:bg-slate-900 transition-all shadow-xl shadow-red-200 active:scale-95"
+              onClick={() => handleSearch()}
+              className="px-16 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95"
             >
-              다시 연결 시도
+              다시 시도하기
             </button>
           </div>
         )}
@@ -185,14 +181,14 @@ const App: React.FC = () => {
         {streamingContent && (
           <div className="bg-white rounded-[4rem] shadow-2xl border border-slate-100 p-8 md:p-16 animate-fade-in overflow-hidden" ref={scrollRef}>
             <div className="flex items-center gap-6 mb-12 pb-10 border-b-4 border-slate-50">
-              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white transform -rotate-6">👨‍✈️</div>
+              <div className="w-20 h-20 bg-red-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl text-white">👨‍✈️</div>
               <div>
                 <h3 className="font-black text-slate-900 text-2xl md:text-3xl tracking-tighter leading-tight">
-                  {state.userLocation ? "📍 실시간 내 주변 리포트" : `🏙️ ${state.query} 정밀 분석 완료`}
+                  {state.userLocation ? "📍 내 주변 실시간 리포트" : `🏙️ ${state.query} 지역 정밀 리포트`}
                 </h3>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse"></span>
-                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Live Data Grounding Active</p>
+                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Grounding System Active</p>
                 </div>
               </div>
             </div>
@@ -206,11 +202,8 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-amber-400 to-red-600 opacity-50"></div>
         <p className="font-black tracking-[0.4em] text-slate-400 uppercase mb-6 text-sm">Hong Kong Kim Ban Jang • 2025</p>
         <p className="max-w-xl mx-auto text-xs leading-relaxed opacity-40 font-bold mb-8">
-          이 데이터는 김반장의 20년 현지 경험과 실시간 구글 AI 분석을 결합하여 생성되었습니다.<br/>방문 전 영업 시간과 예약 여부를 꼭 확인하십시오.
+          김반장의 20년 현지 경력과 실시간 구글 AI 검색 데이터를 결합한 리포트입니다.<br/>정보가 실제와 다를 수 있으니 방문 전 구글 맵을 최종 확인하세요.
         </p>
-        <div className="flex justify-center gap-6 opacity-30">
-          <span>🇭🇰</span><span>🍜</span><span>🥟</span><span>🏙️</span>
-        </div>
       </footer>
     </div>
   );

@@ -9,7 +9,7 @@ const SYSTEM_INSTRUCTION = `
 사용자가 요청한 지역의 한국인 찐맛집 10곳과 가볼만한곳 10곳을 추천하십시오.
 
 [데이터 분석 규칙]
-1. 반드시 Google Search 데이터를 기반으로 실시간 영업 중인 장소만 추천합니다.
+1. 반드시 Google Search/Maps 데이터를 기반으로 실시간 영업 중인 장소만 추천합니다.
 2. 한국인 평점 4.0 이상, 최근 6개월 내 리뷰가 좋은 곳을 엄선합니다.
 3. 가격 환율 기준: 1 HKD = 약 180원.
 
@@ -39,7 +39,7 @@ const SYSTEM_INSTRUCTION = `
 [SECTION: 꿀팁]
 - 홍콩 여행 실전 압축 팁 10개 나열.
 
-주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요.
+주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요. 다른 텍스트와 섞이지 않게 하세요.
 `;
 
 export const getTravelGuideStream = async (
@@ -48,9 +48,14 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // 시스템 환경 변수에서 API 키를 직접 참조
+  // 호출 시점에 환경변수에서 API 키를 직접 가져와 인스턴스화
   const apiKey = process.env.API_KEY;
-  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+  
+  if (!apiKey) {
+    throw new Error("시스템 API 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
@@ -63,7 +68,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }],
+        tools: [{ googleSearch: {} }], // 실시간 검색 도구 활성화
       },
     });
 
@@ -80,7 +85,7 @@ export const getTravelGuideStream = async (
       }
     }
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    throw new Error(error.message || "김반장 통신망에 장애가 발생했습니다. 잠시 후 다시 시도해 주세요!");
+    console.error("Gemini API Connection Error:", error);
+    throw new Error("김반장 서버 연결에 실패했습니다. API 키 유효성을 확인해 주세요.");
   }
 };

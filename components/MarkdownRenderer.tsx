@@ -78,7 +78,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           );
         }
 
-        // 사진 검색 버튼 (식당 / 메뉴 / 장소 고도화)
+        // 사진 검색 버튼
         if (line.includes('사진:')) {
           const isMenu = line.includes('메뉴사진');
           const isPlace = line.includes('장소사진');
@@ -118,7 +118,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           );
         }
 
-        // 지도 및 길찾기 액션
+        // 지도 및 길찾기 액션 (Embed 제거 버전)
         if (line.includes('📍')) {
           const urlMatch = line.match(/(https?:\/\/[^\s]+)/g);
           const rawUrl = urlMatch ? urlMatch[0] : '';
@@ -126,34 +126,24 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
 
           const searchParams = new URL(rawUrl).searchParams;
           const query = searchParams.get('query') || searchParams.get('q') || 'Hong Kong';
-          const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
           const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
 
           return (
-            <div key={index} className="space-y-6 pt-10 pb-20 border-b-2 border-slate-50 mb-16 last:border-0">
-              <div className="w-full h-80 bg-slate-200 rounded-[3rem] overflow-hidden shadow-inner border-4 border-white relative group">
-                <iframe 
-                  width="100%" height="100%" frameBorder="0" 
-                  src={embedUrl} title="Google Maps"
-                  className="grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000"
-                ></iframe>
-                <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur px-4 py-1.5 rounded-full text-[10px] font-black text-white shadow-2xl">
-                  📍 LIVE GOOGLE MAPS DATA
-                </div>
-              </div>
-              <div className="flex gap-4">
+            <div key={index} className="pt-6 pb-16 border-b-2 border-slate-50 mb-12 last:border-0">
+              <div className="flex flex-col md:flex-row gap-4">
                 <a 
                   href={directionsUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-[4] flex items-center justify-center gap-3 py-6 bg-red-600 text-white rounded-[2rem] text-base font-black hover:bg-slate-900 transition-all shadow-2xl active:scale-95"
+                  className="flex-1 flex items-center justify-center gap-3 py-6 bg-red-600 text-white rounded-[2rem] text-base font-black hover:bg-slate-900 transition-all shadow-xl active:scale-95"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                  지금 여기로 길찾기
+                  지금 바로 길찾기
                 </a>
                 <a 
                   href={rawUrl} target="_blank" rel="noopener noreferrer" 
-                  className="flex-1 flex items-center justify-center bg-white border-4 border-slate-100 text-slate-800 rounded-[2rem] hover:bg-slate-50 transition-all active:scale-95 shadow-lg"
+                  className="flex-1 flex items-center justify-center gap-3 py-6 bg-white border-4 border-slate-100 text-slate-800 rounded-[2rem] text-base font-black hover:bg-slate-50 transition-all shadow-lg active:scale-95"
                 >
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"></path></svg>
+                  구글 맵에서 위치 확인
                 </a>
               </div>
             </div>
