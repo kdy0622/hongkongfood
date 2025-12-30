@@ -9,7 +9,7 @@ const SYSTEM_INSTRUCTION = `
 사용자가 요청한 지역의 한국인 찐맛집 10곳과 가볼만한곳 10곳을 추천하십시오.
 
 [데이터 분석 규칙]
-1. 반드시 Google Search/Maps 데이터를 기반으로 실시간 영업 중인 장소만 추천합니다.
+1. 반드시 Google Search 데이터를 기반으로 실시간 영업 중인 장소만 추천합니다.
 2. 한국인 평점 4.0 이상, 최근 6개월 내 리뷰가 좋은 곳을 엄선합니다.
 3. 가격 환율 기준: 1 HKD = 약 180원.
 
@@ -48,15 +48,17 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // Always create a new instance right before the call using the environment variable.
-  // The system automatically injects the user-provided API key into process.env.API_KEY.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  
-  // Using gemini-3-flash-preview for the best balance of speed and search grounding capability.
+  // CRITICAL: Must use process.env.API_KEY as per environment rules.
+  // The value is injected after the user selects their key via the UI dialog.
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY_MISSING: 시스템 API 키가 설정되지 않았습니다.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
-    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘. 메뉴별 가격과 설명을 포함할 것.`
+    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘.`
     : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해라.`;
 
   try {
@@ -65,7 +67,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }], // Enable real-time search grounding
+        tools: [{ googleSearch: {} }], // Enable real-time Google Search grounding
       },
     });
 
