@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AppState, GroundingSource, LatLng } from './types';
 import { getTravelGuideStream } from './services/geminiService';
 import LoadingView from './components/LoadingView';
@@ -15,7 +15,27 @@ const App: React.FC = () => {
   });
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingSources, setStreamingSources] = useState<GroundingSource[]>([]);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // API 키 체크
+  useEffect(() => {
+    const checkApiKey = async () => {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+      setState(prev => ({ ...prev, error: null }));
+    }
+  };
 
   const handleSearch = useCallback(async (e?: React.FormEvent, overrideQuery?: string, latLngOverride?: LatLng) => {
     if (e) e.preventDefault();
@@ -23,7 +43,6 @@ const App: React.FC = () => {
     
     if (!queryToUse && !latLngOverride) return;
 
-    // 초기 상태 설정
     setState(prev => ({ 
       ...prev, 
       loading: true, 
@@ -58,7 +77,7 @@ const App: React.FC = () => {
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: err.message || "알 수 없는 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        error: err.message
       }));
     }
   }, [state.query]);
@@ -90,7 +109,9 @@ const App: React.FC = () => {
   };
 
   const handleRetry = () => {
-    if (state.userLocation) {
+    if (state.error?.includes("API 키")) {
+      handleOpenKeySelector();
+    } else if (state.userLocation) {
       handleSearch(undefined, "", state.userLocation);
     } else {
       handleSearch();
@@ -114,6 +135,15 @@ const App: React.FC = () => {
           <p className="text-sm md:text-lg opacity-90 font-bold max-w-md leading-relaxed">
             "거~ 근처 맛집 찾으세요? 김반장이 지금 바로<br/>한국인 찐맛집 TOP 10 싹 훑어드립니다!"
           </p>
+          
+          {!hasApiKey && (
+            <button 
+              onClick={handleOpenKeySelector}
+              className="mt-6 px-6 py-3 bg-amber-400 text-slate-900 rounded-full font-black text-xs animate-bounce shadow-xl flex items-center gap-2"
+            >
+              🔑 API 키 활성화하기 (필수)
+            </button>
+          )}
         </div>
       </header>
 
@@ -158,7 +188,6 @@ const App: React.FC = () => {
       </div>
 
       <main className="flex-grow max-w-3xl mx-auto w-full px-4 pb-20">
-        {/* 초기 가이드 */}
         {!state.loading && !streamingContent && !state.error && (
           <div className="text-center py-16 animate-fade-in">
             <div className="text-7xl mb-8 transform hover:scale-110 transition-transform cursor-default">🍜</div>
@@ -177,7 +206,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 에러 처리 */}
         {state.error && (
           <div className="bg-white border-2 border-red-50 rounded-[2.5rem] p-12 text-center shadow-2xl animate-fade-in mt-10">
             <div className="text-6xl mb-8">🫖</div>
@@ -187,15 +215,13 @@ const App: React.FC = () => {
               onClick={handleRetry}
               className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-slate-900 transition-all shadow-xl shadow-red-200 active:scale-95"
             >
-              다시 시도하기
+              {state.error?.includes("API 키") ? "🔑 키 설정하기" : "다시 시도하기"}
             </button>
           </div>
         )}
 
-        {/* 로딩 */}
         {state.loading && !streamingContent && <LoadingView />}
 
-        {/* 결과 표시 */}
         {streamingContent && (
           <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-6 md:p-12 animate-fade-in" ref={scrollRef}>
             <div className="flex items-center gap-5 mb-10 pb-8 border-b border-slate-100">

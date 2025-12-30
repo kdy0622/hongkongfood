@@ -10,7 +10,7 @@ const SYSTEM_INSTRUCTION = `
 
 [데이터 규칙]
 1. 반드시 Google Maps 데이터를 기반으로 실시간 영업 중인 장소만 추천합니다.
-2. 한국인 평점 4.0 이상, 최근 6개월 리뷰가 좋은 곳을 엄선합니다.
+2. 한국인 평점 4.0 이상, 최근 리뷰가 좋은 곳을 엄선합니다.
 3. 가격 환율 기준: 1 HKD = 약 180원.
 
 [응답 형식 - 엄격 준수]
@@ -39,7 +39,7 @@ const SYSTEM_INSTRUCTION = `
 [SECTION: 꿀팁]
 - 홍콩 여행 실전 압축 팁 10개 나열.
 
-주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요.
+주의: 📍 기호 뒤에는 반드시 구글 맵 검색 URL만 한 줄로 적으세요. 다른 텍스트와 섞이지 않게 하세요.
 `;
 
 export const getTravelGuideStream = async (
@@ -48,13 +48,18 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // 인스턴스를 함수 내부에서 생성하여 API_KEY 참조 안정성 확보
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  // 호출 시점에 새 인스턴스 생성하여 API 키 참조 보장
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY_MISSING");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const modelName = "gemini-2.5-flash";
   
   const prompt = latLng 
-    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘. 메뉴별 가격과 설명을 구체적으로 포함할 것.`
-    : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해라.`;
+    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘. 각 장소마다 대표 메뉴 3개의 가격과 설명을 반드시 포함해라.`
+    : `${location} 지역의 한국인 찐맛집 10곳과 가볼만한곳 10곳을 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해서 자세히 알려줘.`;
 
   try {
     const tools: any[] = [{ googleSearch: {} }];
@@ -94,11 +99,10 @@ export const getTravelGuideStream = async (
       }
     }
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    // API 키 미싱 관련 에러일 경우 더 명확한 메시지 유도
-    const msg = error.message?.includes("API_KEY") 
-      ? "API 키 설정이 올바르지 않습니다. 시스템 설정을 확인해주세요." 
-      : "김반장이 딤섬 먹으러 갔나 봐요. 잠시 후 다시 시도해 주세요!";
-    throw new Error(msg);
+    console.error("Gemini API Error Detail:", error);
+    if (error.message === "API_KEY_MISSING") {
+      throw new Error("API 키가 설정되지 않았습니다. 상단의 'API 키 활성화' 버튼을 눌러주세요.");
+    }
+    throw new Error("김반장 레이더에 일시적인 장애가 생겼습니다. 잠시 후 다시 시도해 주세요!");
   }
 };
