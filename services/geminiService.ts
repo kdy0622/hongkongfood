@@ -48,13 +48,15 @@ export const getTravelGuideStream = async (
   onChunk: (text: string) => void,
   onSources: (sources: GroundingSource[]) => void
 ): Promise<void> => {
-  // 규정에 따라 반드시 process.env.API_KEY를 사용해야 합니다.
-  // 시스템이 자동으로 해당 환경 변수에 사용자의 키를 안전하게 주입합니다.
+  // Always create a new instance right before the call using the environment variable.
+  // The system automatically injects the user-provided API key into process.env.API_KEY.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  
+  // Using gemini-3-flash-preview for the best balance of speed and search grounding capability.
   const modelName = "gemini-3-flash-preview";
   
   const prompt = latLng 
-    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘.`
+    ? `현재 나의 GPS 좌표(${latLng.latitude}, ${latLng.longitude}) 주변 1.5km 이내의 한국인 맛집 10곳과 명소를 추천해줘. 메뉴별 가격과 설명을 포함할 것.`
     : `${location} 지역의 한국인 찐맛집 10곳과 명소를 알려줘. 메뉴별 가격(HKD, KRW)과 상세 설명을 반드시 포함해라.`;
 
   try {
@@ -63,7 +65,7 @@ export const getTravelGuideStream = async (
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{ googleSearch: {} }],
+        tools: [{ googleSearch: {} }], // Enable real-time search grounding
       },
     });
 

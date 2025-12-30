@@ -7,11 +7,10 @@ import { getTravelGuideStream } from './services/geminiService';
 import LoadingView from './components/LoadingView';
 import ContentDisplay from './components/ContentDisplay';
 
-// Extend window for aistudio tools. 
-// Using AIStudio type name to resolve "must be of type AIStudio" and modifier conflict errors.
+// Fix: Augment global Window interface with aistudio using 'any' to avoid type/modifier conflicts with platform declarations.
 declare global {
   interface Window {
-    aistudio: AIStudio;
+    aistudio: any;
   }
 }
 
@@ -29,8 +28,10 @@ const App: React.FC = () => {
 
   const handleApiKeySetup = async () => {
     try {
-      await window.aistudio.openSelectKey();
-      setState(prev => ({ ...prev, error: null }));
+      if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+        setState(prev => ({ ...prev, error: null }));
+      }
     } catch (e) {
       console.error("Failed to open key selector", e);
     }
@@ -54,10 +55,10 @@ const App: React.FC = () => {
     setStreamingSources([]);
     
     try {
-      // Mandatory API Key Selection check for Gemini 3 series models as per guidelines.
+      // Fix: Follow key selection flow for Gemini 3 series models.
+      // Use window.aistudio check and proceed immediately after openSelectKey to handle potential race conditions.
       if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
         await window.aistudio.openSelectKey();
-        // Proceeding immediately after openSelectKey as per "Race condition" guidelines.
       }
 
       await getTravelGuideStream(
@@ -81,8 +82,9 @@ const App: React.FC = () => {
       console.error("Search Fail:", err);
       let errorMessage = err.message || "연결 오류가 발생했습니다.";
       
-      if (errorMessage.includes("Requested entity was not found") || errorMessage.includes("API_KEY_INVALID")) {
-        errorMessage = "API 키 설정에 문제가 발생했습니다. 'API 키 재설정' 버튼을 눌러주세요.";
+      // Fix: Specifically handle API key errors and 'Requested entity was not found' as per guidelines.
+      if (errorMessage.includes("API key") || errorMessage.includes("403") || errorMessage.includes("401") || errorMessage.includes("Requested entity was not found")) {
+        errorMessage = "API 키가 유효하지 않거나 설정되지 않았습니다. 하단의 'API 키 재설정' 버튼을 눌러주세요.";
       }
 
       setState(prev => ({ 
@@ -122,13 +124,13 @@ const App: React.FC = () => {
         </div>
         <div className="max-w-3xl mx-auto flex flex-col items-center text-center relative z-10">
           <div className="inline-block px-4 py-1.5 bg-white/20 rounded-full text-[10px] md:text-xs font-black mb-6 backdrop-blur-md border border-white/30 uppercase tracking-[0.3em]">
-            AI Data Grounding System • Verified Guide
+            Real-time Grounding • Hong Kong Expert
           </div>
           <h1 className="text-5xl md:text-7xl font-black mb-6 drop-shadow-2xl tracking-tighter">
             홍콩 김반장 <span className="text-amber-400">🇭🇰</span>
           </h1>
           <p className="text-base md:text-xl opacity-90 font-bold max-w-lg leading-relaxed">
-            "불편을 드려 미안합니다! 이제 API 키 연결을<br/>더 견고하게 고쳤으니 바로 시작하시죠!"
+            "실시간 구글 데이터로 뽑아내는<br/>홍콩 찐맛집 정밀 분석 리포트!"
           </p>
         </div>
       </header>
@@ -175,10 +177,10 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-4xl mx-auto w-full px-4 pb-24">
         {!state.loading && !streamingContent && !state.error && (
           <div className="text-center py-20 animate-fade-in">
-            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🏙️</div>
-            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">홍콩 어디가 궁금하신가?</h2>
+            <div className="text-8xl mb-10 transform hover:scale-110 transition-transform cursor-default">🥟</div>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-800 mb-6 tracking-tight">어디로 모실까요?</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-12 max-w-2xl mx-auto">
-              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '콰이힝'].map(tag => (
+              {['침사추이', '센트럴', '몽콕', '코즈웨이베이', '완차이', '야우마테이'].map(tag => (
                 <button
                   key={tag}
                   onClick={() => handleSearch(undefined, tag)}
@@ -193,15 +195,15 @@ const App: React.FC = () => {
 
         {state.error && (
           <div className="bg-white border-4 border-red-50 rounded-[3rem] p-16 text-center shadow-2xl animate-fade-in mt-10">
-            <div className="text-7xl mb-8">🛠️</div>
-            <div className="text-slate-900 font-black text-3xl mb-4">앗, 김반장 통신망에 문제 발생!</div>
+            <div className="text-7xl mb-8">⚠️</div>
+            <div className="text-slate-900 font-black text-3xl mb-4">통신에 문제가 생겼습니다!</div>
             <p className="text-slate-500 mb-12 font-bold text-lg leading-relaxed">{state.error}</p>
             <div className="flex flex-col gap-4 max-w-xs mx-auto">
               <button 
                 onClick={() => handleSearch()}
                 className="px-8 py-5 bg-red-600 text-white rounded-[2rem] font-black text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95"
               >
-                검색 다시 시도
+                다시 시도
               </button>
               <button 
                 onClick={handleApiKeySetup}
@@ -225,7 +227,7 @@ const App: React.FC = () => {
                 </h3>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse"></span>
-                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Live API Connection Stable</p>
+                  <p className="text-xs text-green-600 font-black uppercase tracking-widest">Grounding Engine Connected</p>
                 </div>
               </div>
             </div>
